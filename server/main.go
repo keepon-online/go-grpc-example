@@ -22,6 +22,26 @@ func (s HelloServer) SayHello(ctx context.Context, request *hello.HelloRequest) 
 	}, nil
 }
 
+// LotsOfReplies 服务端返回流
+func (s HelloServer) LotsOfReplies(in *hello.HelloRequest, stream hello.HelloService_LotsOfRepliesServer) error {
+	words := []string{
+		"你好",
+		"hello",
+		"こんにちは",
+		"안녕하세요",
+	}
+	for _, word := range words {
+		data := &hello.HelloResponse{
+			Name: in.Name + word,
+		}
+		// 使用Send方法返回多个数据
+		if err := stream.Send(data); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func main() {
 	// 监听端口
 	listen, err := net.Listen("tcp", ":8080")

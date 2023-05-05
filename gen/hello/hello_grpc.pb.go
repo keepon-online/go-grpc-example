@@ -4,6 +4,8 @@
 // - protoc             (unknown)
 // source: hello.proto
 
+// 指定proto版本
+
 package hello
 
 import (
@@ -19,7 +21,8 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	HelloService_SayHello_FullMethodName = "/hello.v1.HelloService/SayHello"
+	HelloService_SayHello_FullMethodName      = "/hello.v1.HelloService/SayHello"
+	HelloService_LotsOfReplies_FullMethodName = "/hello.v1.HelloService/LotsOfReplies"
 )
 
 // HelloServiceClient is the client API for HelloService service.
@@ -28,6 +31,8 @@ const (
 type HelloServiceClient interface {
 	// 定义函数
 	SayHello(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloResponse, error)
+	// 服务端返回流式数据
+	LotsOfReplies(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (HelloService_LotsOfRepliesClient, error)
 }
 
 type helloServiceClient struct {
@@ -47,12 +52,46 @@ func (c *helloServiceClient) SayHello(ctx context.Context, in *HelloRequest, opt
 	return out, nil
 }
 
+func (c *helloServiceClient) LotsOfReplies(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (HelloService_LotsOfRepliesClient, error) {
+	stream, err := c.cc.NewStream(ctx, &HelloService_ServiceDesc.Streams[0], HelloService_LotsOfReplies_FullMethodName, opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &helloServiceLotsOfRepliesClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type HelloService_LotsOfRepliesClient interface {
+	Recv() (*HelloResponse, error)
+	grpc.ClientStream
+}
+
+type helloServiceLotsOfRepliesClient struct {
+	grpc.ClientStream
+}
+
+func (x *helloServiceLotsOfRepliesClient) Recv() (*HelloResponse, error) {
+	m := new(HelloResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // HelloServiceServer is the server API for HelloService service.
 // All implementations must embed UnimplementedHelloServiceServer
 // for forward compatibility
 type HelloServiceServer interface {
 	// 定义函数
 	SayHello(context.Context, *HelloRequest) (*HelloResponse, error)
+	// 服务端返回流式数据
+	LotsOfReplies(*HelloRequest, HelloService_LotsOfRepliesServer) error
 	mustEmbedUnimplementedHelloServiceServer()
 }
 
@@ -62,6 +101,9 @@ type UnimplementedHelloServiceServer struct {
 
 func (UnimplementedHelloServiceServer) SayHello(context.Context, *HelloRequest) (*HelloResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SayHello not implemented")
+}
+func (UnimplementedHelloServiceServer) LotsOfReplies(*HelloRequest, HelloService_LotsOfRepliesServer) error {
+	return status.Errorf(codes.Unimplemented, "method LotsOfReplies not implemented")
 }
 func (UnimplementedHelloServiceServer) mustEmbedUnimplementedHelloServiceServer() {}
 
@@ -94,6 +136,27 @@ func _HelloService_SayHello_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _HelloService_LotsOfReplies_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(HelloRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(HelloServiceServer).LotsOfReplies(m, &helloServiceLotsOfRepliesServer{stream})
+}
+
+type HelloService_LotsOfRepliesServer interface {
+	Send(*HelloResponse) error
+	grpc.ServerStream
+}
+
+type helloServiceLotsOfRepliesServer struct {
+	grpc.ServerStream
+}
+
+func (x *helloServiceLotsOfRepliesServer) Send(m *HelloResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 // HelloService_ServiceDesc is the grpc.ServiceDesc for HelloService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -106,6 +169,12 @@ var HelloService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _HelloService_SayHello_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "LotsOfReplies",
+			Handler:       _HelloService_LotsOfReplies_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "hello.proto",
 }

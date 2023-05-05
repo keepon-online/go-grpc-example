@@ -1,5 +1,9 @@
-syntax = "proto3"; // 指定proto版本
-package hello.v1;     // 指定默认包名
+syntax = "proto3";
+
+// 指定proto版本
+package hello.v1;
+
+// 指定默认包名
 
 // 指定golang包名
 option go_package = "github.com/keepon-online/go-grpc-example;hello";
@@ -8,6 +12,9 @@ option go_package = "github.com/keepon-online/go-grpc-example;hello";
 service HelloService {
     // 定义函数
     rpc SayHello (HelloRequest) returns (HelloResponse) {}
+
+    // 服务端返回流式数据
+    rpc LotsOfReplies (HelloRequest) returns (stream HelloResponse);
 }
 
 // HelloRequest 请求内容
@@ -17,7 +24,7 @@ message HelloRequest {
 }
 
 // HelloResponse 响应内容
-message HelloResponse{
+message HelloResponse {
     string name = 1;
     string message = 2;
 }
