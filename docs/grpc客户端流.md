@@ -1,3 +1,74 @@
+
+# proto 添加
+
+```protobuf
+
+syntax = "proto3";
+
+// 指定proto版本
+package hello.v1;
+
+// 指定默认包名
+
+// 指定golang包名
+option go_package = "github.com/keepon-online/go-grpc-example;hello";
+
+//定义rpc服务
+service HelloService {
+    // 定义函数
+    rpc SayHello (HelloRequest) returns (HelloResponse) {}
+
+    // 服务端返回流式数据
+    rpc LotsOfReplies (HelloRequest) returns (stream HelloResponse);
+
+    // 客户端发送流式数据
+    rpc LotsOfGreetings(stream HelloRequest) returns (HelloResponse);
+}
+
+// HelloRequest 请求内容
+message HelloRequest {
+    string name = 1;
+    string message = 2;
+}
+
+// HelloResponse 响应内容
+message HelloResponse {
+    string name = 1;
+    string message = 2;
+}
+
+
+```
+## 重新生成代码
+
+### 服务端接收流接口
+
+```go
+
+// LotsOfGreetings 接收流式数据
+func (s HelloServer) LotsOfGreetings(stream hello.HelloService_LotsOfGreetingsServer) error {
+	reply := "你好："
+	for {
+		// 接收客户端发来的流式数据
+		res, err := stream.Recv()
+		if err == io.EOF {
+			// 最终统一回复
+			return stream.SendAndClose(&hello.HelloResponse{
+				Name: reply,
+			})
+		}
+		if err != nil {
+			return err
+		}
+		reply += res.GetName()
+	}
+}
+```
+
+### 客户端
+
+
+```go
 package main
 
 import (
@@ -81,3 +152,19 @@ func runLotsOfGreeting(c hello.HelloServiceClient) {
 	}
 	log.Printf("向服务端发送流 reply: %v", res.GetName())
 }
+
+
+```
+
+```
+name:"鲁迪"  message:"ok"
+2023/05/05 15:57:56 接收服务端流 reply: "鲁迪你好"
+2023/05/05 15:57:56 接收服务端流 reply: "鲁迪hello"
+2023/05/05 15:57:56 接收服务端流 reply: "鲁迪こんにちは"
+2023/05/05 15:57:56 接收服务端流 reply: "鲁迪안녕하세요"
+2023/05/05 15:57:56 向服务端发送流 reply: 你好：孙悟空齐天大圣弼马温
+
+
+
+
+```

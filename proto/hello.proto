@@ -15,6 +15,9 @@ service HelloService {
 
     // 服务端返回流式数据
     rpc LotsOfReplies (HelloRequest) returns (stream HelloResponse);
+
+    // 客户端发送流式数据
+    rpc LotsOfGreetings(stream HelloRequest) returns (HelloResponse);
 }
 
 // HelloRequest 请求内容

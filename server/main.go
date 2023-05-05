@@ -6,6 +6,7 @@ import (
 	"github.com/keepon-online/go-grpc-example/gen/hello"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/grpclog"
+	"io"
 	"net"
 )
 
@@ -40,6 +41,25 @@ func (s HelloServer) LotsOfReplies(in *hello.HelloRequest, stream hello.HelloSer
 		}
 	}
 	return nil
+}
+
+// LotsOfGreetings 接收流式数据
+func (s HelloServer) LotsOfGreetings(stream hello.HelloService_LotsOfGreetingsServer) error {
+	reply := "你好："
+	for {
+		// 接收客户端发来的流式数据
+		res, err := stream.Recv()
+		if err == io.EOF {
+			// 最终统一回复
+			return stream.SendAndClose(&hello.HelloResponse{
+				Name: reply,
+			})
+		}
+		if err != nil {
+			return err
+		}
+		reply += res.GetName()
+	}
 }
 
 func main() {
