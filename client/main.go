@@ -32,6 +32,8 @@ func main() {
 	runLotsOfReplies(client, &helloRequest)
 	//向服务端发送流
 	runLotsOfGreeting(client)
+	// 双向流数据
+	runBidiHello(client)
 }
 
 // 接收服务端流
@@ -80,4 +82,44 @@ func runLotsOfGreeting(c hello.HelloServiceClient) {
 		log.Fatalf("c.LotsOfGreetings failed: %v", err)
 	}
 	log.Printf("向服务端发送流 reply: %v", res.GetName())
+}
+
+// 双向流数据
+func runBidiHello(c hello.HelloServiceClient) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	// 双向流模式
+	stream, err := c.BidiHello(ctx)
+	if err != nil {
+		log.Fatalf("c.BidiHello failed, err: %v", err)
+	}
+	waitc := make(chan struct{})
+	go func() {
+		for {
+			// 接收服务端返回的响应
+			in, err := stream.Recv()
+			if err == io.EOF {
+				// read done.
+				close(waitc)
+				return
+			}
+			if err != nil {
+				log.Fatalf("c.BidiHello stream.Recv() failed, err: %v", err)
+			}
+			fmt.Printf("双向流数据-接收服务端返回的响应 ：%s\n", in.GetName())
+		}
+	}()
+
+	names := []string{"孙悟空", "齐天大圣", "弼马温"}
+	for _, name := range names {
+		// 发送流式数据
+		err := stream.Send(&hello.HelloRequest{
+			Name: name,
+		})
+		if err != nil {
+			log.Fatalf("双向流数据-客户端 stream.Send(%v) failed, err: %v", name, err)
+		}
+	}
+	stream.CloseSend()
+	<-waitc
 }

@@ -46,6 +46,11 @@ plugins:
 
 ```
 
+```
+    buf generate proto
+```
+
+
 ## 服务端
 
 ```go

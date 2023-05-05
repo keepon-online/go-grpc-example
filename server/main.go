@@ -62,6 +62,26 @@ func (s HelloServer) LotsOfGreetings(stream hello.HelloService_LotsOfGreetingsSe
 	}
 }
 
+// BidiHello 双向流数据
+func (s HelloServer) BidiHello(stream hello.HelloService_BidiHelloServer) error {
+	for {
+		// 接收流式请求
+		in, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		reply := in.GetName() // 对收到的数据做些处理
+
+		// 返回流式响应
+		if err := stream.Send(&hello.HelloResponse{Name: reply}); err != nil {
+			return err
+		}
+	}
+}
+
 func main() {
 	// 监听端口
 	listen, err := net.Listen("tcp", ":8080")

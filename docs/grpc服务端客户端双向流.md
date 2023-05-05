@@ -23,6 +23,9 @@ service HelloService {
 
     // 客户端发送流式数据
     rpc LotsOfGreetings(stream HelloRequest) returns (HelloResponse);
+
+    // 双向流式数据
+    rpc BidiHello(stream HelloRequest) returns (stream HelloResponse);
 }
 
 // HelloRequest 请求内容
@@ -41,32 +44,36 @@ message HelloResponse {
 ```
 ## 重新生成代码
 
+
 ```
     buf generate proto
 ```
 
-### 服务端接收流接口
+
+### 服务端双向流数据
+
 
 ```go
-
-// LotsOfGreetings 接收流式数据
-func (s HelloServer) LotsOfGreetings(stream hello.HelloService_LotsOfGreetingsServer) error {
-	reply := "你好："
+// BidiHello 双向流数据
+func (s HelloServer) BidiHello(stream hello.HelloService_BidiHelloServer) error {
 	for {
-		// 接收客户端发来的流式数据
-		res, err := stream.Recv()
+		// 接收流式请求
+		in, err := stream.Recv()
 		if err == io.EOF {
-			// 最终统一回复
-			return stream.SendAndClose(&hello.HelloResponse{
-				Name: reply,
-			})
+			return nil
 		}
 		if err != nil {
 			return err
 		}
-		reply += res.GetName()
+		reply := in.GetName() // 对收到的数据做些处理
+
+		// 返回流式响应
+		if err := stream.Send(&hello.HelloResponse{Name: reply}); err != nil {
+			return err
+		}
 	}
 }
+
 ```
 
 ### 客户端
@@ -107,6 +114,8 @@ func main() {
 	runLotsOfReplies(client, &helloRequest)
 	//向服务端发送流
 	runLotsOfGreeting(client)
+	// 双向流数据
+	runBidiHello(client)
 }
 
 // 接收服务端流
@@ -157,18 +166,59 @@ func runLotsOfGreeting(c hello.HelloServiceClient) {
 	log.Printf("向服务端发送流 reply: %v", res.GetName())
 }
 
+// 双向流数据
+func runBidiHello(c hello.HelloServiceClient) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	// 双向流模式
+	stream, err := c.BidiHello(ctx)
+	if err != nil {
+		log.Fatalf("c.BidiHello failed, err: %v", err)
+	}
+	waitc := make(chan struct{})
+	go func() {
+		for {
+			// 接收服务端返回的响应
+			in, err := stream.Recv()
+			if err == io.EOF {
+				// read done.
+				close(waitc)
+				return
+			}
+			if err != nil {
+				log.Fatalf("c.BidiHello stream.Recv() failed, err: %v", err)
+			}
+			fmt.Printf("双向流数据-接收服务端返回的响应 ：%s\n", in.GetName())
+		}
+	}()
+
+	names := []string{"孙悟空", "齐天大圣", "弼马温"}
+	for _, name := range names {
+		// 发送流式数据
+		err := stream.Send(&hello.HelloRequest{
+			Name: name,
+		})
+		if err != nil {
+			log.Fatalf("双向流数据-客户端 stream.Send(%v) failed, err: %v", name, err)
+		}
+	}
+	stream.CloseSend()
+	<-waitc
+}
+
 
 ```
 
 ```
-name:"鲁迪"  message:"ok"
-2023/05/05 15:57:56 接收服务端流 reply: "鲁迪你好"
-2023/05/05 15:57:56 接收服务端流 reply: "鲁迪hello"
-2023/05/05 15:57:56 接收服务端流 reply: "鲁迪こんにちは"
-2023/05/05 15:57:56 接收服务端流 reply: "鲁迪안녕하세요"
-2023/05/05 15:57:56 向服务端发送流 reply: 你好：孙悟空齐天大圣弼马温
-
-
+name:"鲁迪" message:"ok"
+2023/05/05 16:12:29 接收服务端流 reply: "鲁迪你好"
+2023/05/05 16:12:29 接收服务端流 reply: "鲁迪hello"
+2023/05/05 16:12:29 接收服务端流 reply: "鲁迪こんにちは"
+2023/05/05 16:12:29 接收服务端流 reply: "鲁迪안녕하세요"
+2023/05/05 16:12:29 向服务端发送流 reply: 你好：孙悟空齐天大圣弼马温
+双向流数据-接收服务端返回的响应 ：孙悟空
+双向流数据-接收服务端返回的响应 ：齐天大圣
+双向流数据-接收服务端返回的响应 ：弼马温
 
 
 ```

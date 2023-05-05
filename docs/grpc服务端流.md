@@ -37,6 +37,12 @@ message HelloResponse {
 ```
 ## 重新生成代码
 
+
+```
+    buf generate proto
+```
+
+
 ### 服务端实现流接口
 
 ```go
