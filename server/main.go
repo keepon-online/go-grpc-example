@@ -6,6 +6,7 @@ import (
 	"github.com/keepon-online/go-grpc-example/gen/hello"
 	"github.com/keepon-online/go-grpc-example/server/handler"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/grpclog"
 	"io"
 	"net"
@@ -89,11 +90,16 @@ func main() {
 	if err != nil {
 		grpclog.Fatalf("Failed to listen: %v", err)
 	}
+	creds, _ := credentials.NewServerTLSFromFile("conf/server.crt", "conf/server.key")
 
 	// 创建一个gRPC服务器实例。
 	s := grpc.NewServer(
-		grpc.UnaryInterceptor(handler.UnaryServerInterceptor()),
-		grpc.StreamInterceptor(handler.StreamServerInterceptor()),
+		grpc.Creds(creds),
+		grpc.ChainUnaryInterceptor(
+			handler.ServerInterceptorCheckToken(),
+			//handler.UnaryServerInterceptor()
+		),
+		//grpc.StreamInterceptor(handler.StreamServerInterceptor()),
 	)
 	server := HelloServer{}
 	// 将server结构体注册为gRPC服务。

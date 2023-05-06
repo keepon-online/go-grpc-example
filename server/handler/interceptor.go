@@ -3,9 +3,13 @@ package handler
 import (
 	"context"
 	"fmt"
+	"github.com/keepon-online/go-grpc-example/gen/hello"
+	"github.com/keepon-online/go-grpc-example/util"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/status"
 	"log"
 	"time"
 )
@@ -86,4 +90,54 @@ func (e *streamServer) SendMsg(m interface{}) error {
 		return err
 	}
 	return nil
+}
+
+// ServerInterceptorCheckToken 用一元拦截器实现认证
+func ServerInterceptorCheckToken() grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo,
+		handler grpc.UnaryHandler) (resp interface{}, err error) {
+		// 验证token
+		_, err = checkToken(ctx)
+		if err != nil {
+			fmt.Println("Interceptor 拦截器内token认证失败")
+			return nil, err
+		}
+		fmt.Println("Interceptor 拦截器内token认证成功")
+		return handler(ctx, req)
+	}
+}
+
+// 验证
+func checkToken(ctx context.Context) (*hello.HelloResponse, error) {
+	// 取出元数据
+	md, b := metadata.FromIncomingContext(ctx)
+	if !b {
+		return nil, status.Error(codes.InvalidArgument, "token信息不存在")
+	}
+
+	var token, _ string
+	// 取出token
+	tokenInfo, ok := md["token"]
+	if !ok {
+		return nil, status.Error(codes.InvalidArgument, "token不存在")
+	}
+
+	token = tokenInfo[0]
+
+	// 取出uid
+	uidTmp, ok := md["uid"]
+	if !ok {
+		return nil, status.Error(codes.InvalidArgument, "uid不存在")
+	}
+	_ = uidTmp[0]
+	//验证
+	j := util.NewJWT()
+	parseToken, err := j.ParseToken(token)
+	if err != nil {
+		fmt.Println(err)
+		return nil, status.Error(codes.InvalidArgument, "token验证失败")
+	}
+	fmt.Println("parseToken: ", parseToken.Username)
+
+	return nil, nil
 }

@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"github.com/keepon-online/go-grpc-example/client/handler"
 	"github.com/keepon-online/go-grpc-example/gen/hello"
+	"github.com/keepon-online/go-grpc-example/util"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/credentials"
 	"io"
 	"log"
 	"time"
@@ -16,14 +17,23 @@ func main() {
 	addr := "192.168.2.166:8080"
 	// 使用 grpc.Dial 创建一个到指定地址的 gRPC 连接。
 	// 此处使用不安全的证书来实现 SSL/TLS 连接
+	//构建Token
+	token := handler.Token{
+		Uid:   "1234",
+		Token: token(),
+	}
+	creds, _ := credentials.NewClientTLSFromFile("conf/server.crt", "")
+
 	conn, err := grpc.Dial(addr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(creds),
+		grpc.WithPerRPCCredentials(&token),
 		//普通拦截器
 		grpc.WithChainUnaryInterceptor(
 			handler.UnaryClientInterceptor(),
-			handler.UnaryClientInterceptorTwo()),
+			//handler.UnaryClientInterceptorTwo()
+		),
 		//流式拦截器
-		grpc.WithStreamInterceptor(handler.StreamClientInterceptor()),
+		//grpc.WithStreamInterceptor(handler.StreamClientInterceptor()),
 	)
 	if err != nil {
 		log.Fatalf(fmt.Sprintf("grpc connect addr [%s] 连接失败 %s", addr, err))
@@ -43,6 +53,17 @@ func main() {
 	runLotsOfGreeting(client)
 	// 双向流数据
 	runBidiHello(client)
+}
+
+func token() string {
+	j := util.NewJWT()
+	claims := j.CreateClaims(util.BaseClaims{
+		ID:       1,
+		Username: "hello",
+	})
+	fmt.Printf("%v", claims)
+	createToken, _ := j.CreateToken(claims)
+	return createToken
 }
 
 // 接收服务端流
