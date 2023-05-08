@@ -3,6 +3,8 @@ syntax = "proto3";
 // 指定proto版本
 package hello.v1;
 
+import "google/api/annotations.proto";
+
 // 指定默认包名
 
 // 指定golang包名
@@ -17,10 +19,22 @@ service HelloService {
     rpc LotsOfReplies (HelloRequest) returns (stream HelloResponse);
 
     // 客户端发送流式数据
-    rpc LotsOfGreetings(stream HelloRequest) returns (HelloResponse);
+    rpc LotsOfGreetings (stream HelloRequest) returns (HelloResponse);
 
     // 双向流式数据
-    rpc BidiHello(stream HelloRequest) returns (stream HelloResponse);
+    rpc BidiHello (stream HelloRequest) returns (stream HelloResponse);
+}
+
+// grpc-gateway
+
+service GatewayService {
+    // 定义函数
+    rpc SayMessage (HelloRequest) returns (HelloResponse) {
+        option (google.api.http) = {
+            post: "/v1/greeter/sayMessage"
+            body: "*"
+        };
+    }
 }
 
 // HelloRequest 请求内容

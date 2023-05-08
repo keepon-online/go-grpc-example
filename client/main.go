@@ -29,8 +29,8 @@ func main() {
 		grpc.WithPerRPCCredentials(&token),
 		//普通拦截器
 		grpc.WithChainUnaryInterceptor(
-			handler.UnaryClientInterceptor(),
-			//handler.UnaryClientInterceptorTwo()
+		//handler.UnaryClientInterceptor(),
+		//handler.UnaryClientInterceptorTwo()
 		),
 		//流式拦截器
 		//grpc.WithStreamInterceptor(handler.StreamClientInterceptor()),
@@ -41,10 +41,12 @@ func main() {
 	defer conn.Close()
 	// 初始化客户端
 	client := hello.NewHelloServiceClient(conn)
+	gatewayServiceClient := hello.NewGatewayServiceClient(conn)
 	helloRequest := hello.HelloRequest{
 		Name:    "鲁迪",
 		Message: "ok",
 	}
+	sayMessage(gatewayServiceClient)
 	result, err := client.SayHello(context.Background(), &helloRequest)
 	fmt.Println(result)
 	//接收服务端流
@@ -61,8 +63,8 @@ func token() string {
 		ID:       1,
 		Username: "hello",
 	})
-	fmt.Printf("%v", claims)
 	createToken, _ := j.CreateToken(claims)
+	fmt.Println(createToken)
 	return createToken
 }
 
@@ -152,4 +154,16 @@ func runBidiHello(c hello.HelloServiceClient) {
 	}
 	stream.CloseSend()
 	<-waitc
+}
+
+// gateway
+func sayMessage(c hello.GatewayServiceClient) {
+
+	message, err := c.SayMessage(context.Background(), &hello.HelloRequest{Name: "test", Message: "收到请求"})
+	if err != nil {
+
+		log.Fatalf("sayMessage error %s", err.Error())
+		return
+	}
+	fmt.Printf("get sayMessage rely name%s message %s\n", message.GetName(), message.GetMessage())
 }

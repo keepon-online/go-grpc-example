@@ -1,0 +1,7 @@
+POST http://192.168.2.166:8081/v1/greeter/sayMessage
+Content-Type: application/json
+
+{
+  "message": "你好",
+  "name": "宋夏"
+}

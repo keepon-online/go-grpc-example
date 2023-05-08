@@ -1,0 +1,9 @@
+# 1生成ca私钥，得到ca.key
+openssl genrsa -out ca.key 4096
+
+# 2生成ca证书签发请求，得到ca.csr
+
+openssl req -new -sha256 -out ca.csr -key ca.key -config ca.conf
+
+# 3生成ca根证书，得到ca.crt
+openssl x509 -req -days 3650 -in ca.csr -signkey ca.key -out ca.crt

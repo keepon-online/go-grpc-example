@@ -322,3 +322,95 @@ var HelloService_ServiceDesc = grpc.ServiceDesc{
 	},
 	Metadata: "hello.proto",
 }
+
+const (
+	GatewayService_SayMessage_FullMethodName = "/hello.v1.GatewayService/SayMessage"
+)
+
+// GatewayServiceClient is the client API for GatewayService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type GatewayServiceClient interface {
+	// 定义函数
+	SayMessage(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloResponse, error)
+}
+
+type gatewayServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewGatewayServiceClient(cc grpc.ClientConnInterface) GatewayServiceClient {
+	return &gatewayServiceClient{cc}
+}
+
+func (c *gatewayServiceClient) SayMessage(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloResponse, error) {
+	out := new(HelloResponse)
+	err := c.cc.Invoke(ctx, GatewayService_SayMessage_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// GatewayServiceServer is the server API for GatewayService service.
+// All implementations must embed UnimplementedGatewayServiceServer
+// for forward compatibility
+type GatewayServiceServer interface {
+	// 定义函数
+	SayMessage(context.Context, *HelloRequest) (*HelloResponse, error)
+	mustEmbedUnimplementedGatewayServiceServer()
+}
+
+// UnimplementedGatewayServiceServer must be embedded to have forward compatible implementations.
+type UnimplementedGatewayServiceServer struct {
+}
+
+func (UnimplementedGatewayServiceServer) SayMessage(context.Context, *HelloRequest) (*HelloResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SayMessage not implemented")
+}
+func (UnimplementedGatewayServiceServer) mustEmbedUnimplementedGatewayServiceServer() {}
+
+// UnsafeGatewayServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to GatewayServiceServer will
+// result in compilation errors.
+type UnsafeGatewayServiceServer interface {
+	mustEmbedUnimplementedGatewayServiceServer()
+}
+
+func RegisterGatewayServiceServer(s grpc.ServiceRegistrar, srv GatewayServiceServer) {
+	s.RegisterService(&GatewayService_ServiceDesc, srv)
+}
+
+func _GatewayService_SayMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HelloRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GatewayServiceServer).SayMessage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GatewayService_SayMessage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GatewayServiceServer).SayMessage(ctx, req.(*HelloRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// GatewayService_ServiceDesc is the grpc.ServiceDesc for GatewayService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var GatewayService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "hello.v1.GatewayService",
+	HandlerType: (*GatewayServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "SayMessage",
+			Handler:    _GatewayService_SayMessage_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "hello.proto",
+}

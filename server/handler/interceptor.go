@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/keepon-online/go-grpc-example/gen/hello"
 	"github.com/keepon-online/go-grpc-example/util"
 	"google.golang.org/grpc"
@@ -11,6 +12,7 @@ import (
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 	"log"
+	"strings"
 	"time"
 )
 
@@ -124,12 +126,6 @@ func checkToken(ctx context.Context) (*hello.HelloResponse, error) {
 
 	token = tokenInfo[0]
 
-	// 取出uid
-	uidTmp, ok := md["uid"]
-	if !ok {
-		return nil, status.Error(codes.InvalidArgument, "uid不存在")
-	}
-	_ = uidTmp[0]
 	//验证
 	j := util.NewJWT()
 	parseToken, err := j.ParseToken(token)
@@ -140,4 +136,24 @@ func checkToken(ctx context.Context) (*hello.HelloResponse, error) {
 	fmt.Println("parseToken: ", parseToken.Username)
 
 	return nil, nil
+}
+
+// AuthenticateInterceptor 定义一个认证拦截器，将token添加到gRPC元数据中进行身份验证
+func AuthenticateInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	// 将token添加到gRPC元数据中
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		md = metadata.New(nil)
+	}
+	ctx = metadata.NewIncomingContext(ctx, md)
+	// 调用下一个处理程序
+	return handler(ctx, req)
+}
+
+// CustomHeaderMatcher 定义一个HTTP请求处理程序，将token从自定义头中提取出来，并将其添加到gRPC元数据中进行身份验证
+func CustomHeaderMatcher(key string) (string, bool) {
+	if strings.ToLower(key) == "authorization" {
+		return "token", true
+	}
+	return runtime.DefaultHeaderMatcher(key)
 }
