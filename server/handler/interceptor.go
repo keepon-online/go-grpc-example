@@ -6,6 +6,7 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/keepon-online/go-grpc-example/gen/hello"
 	"github.com/keepon-online/go-grpc-example/util"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -130,11 +131,21 @@ func checkToken(ctx context.Context) (*hello.HelloResponse, error) {
 	j := util.NewJWT()
 	parseToken, err := j.ParseToken(token)
 	if err != nil {
-		fmt.Println(err)
-		return nil, status.Error(codes.InvalidArgument, "token验证失败")
+		st := status.New(codes.InvalidArgument, "token校验失败")
+		ds, err := st.WithDetails(
+			&errdetails.QuotaFailure{
+				Violations: []*errdetails.QuotaFailure_Violation{{
+					Subject:     fmt.Sprintf("token失效"),
+					Description: "请使用新的token",
+				}},
+			},
+		)
+		if err != nil {
+			return nil, st.Err()
+		}
+		return nil, ds.Err()
 	}
 	fmt.Println("parseToken: ", parseToken.Username)
-
 	return nil, nil
 }
 
