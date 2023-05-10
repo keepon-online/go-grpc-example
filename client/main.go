@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"github.com/keepon-online/go-grpc-example/client/handler"
@@ -10,6 +11,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"io"
 	"log"
+	"os"
 	"time"
 )
 
@@ -42,10 +44,13 @@ func main() {
 	// 初始化客户端
 	client := hello.NewHelloServiceClient(conn)
 	gatewayServiceClient := hello.NewGatewayServiceClient(conn)
+	fileServiceClient := hello.NewFileServiceClient(conn)
 	helloRequest := hello.HelloRequest{
 		Name:    "鲁迪",
 		Message: "ok",
 	}
+	downloadFile(fileServiceClient)
+	uploadFile(fileServiceClient)
 	sayMessage(gatewayServiceClient)
 	result, err := client.SayHello(context.Background(), &helloRequest)
 	fmt.Println(result)
@@ -166,4 +171,42 @@ func sayMessage(c hello.GatewayServiceClient) {
 		return
 	}
 	fmt.Printf("get sayMessage rely name%s message %s\n", message.GetName(), message.GetMessage())
+}
+
+// DownloadFile
+func downloadFile(client hello.FileServiceClient) {
+	stream, err := client.DownLoadFile(context.Background(), &hello.HelloRequest{
+		Name: "1213",
+	})
+	if err != nil {
+		return
+	}
+	file, err := os.OpenFile("./server.cert", os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer file.Close()
+
+	writer := bufio.NewWriter(file)
+	var index int
+	for {
+		index++
+		response, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		fmt.Printf("第%d 次， 写入 %d 数据\n", index, len(response.Content))
+		writer.Write(response.Content)
+	}
+	writer.Flush()
+
+}
+
+func uploadFile(client hello.FileServiceClient) {
+	stream, err := client.UploadFile(context.Background())
+	for i := 0; i < 10; i++ {
+		stream.Send(&hello.FileRequest{FileName: fmt.Sprintf("第%d次", i)})
+	}
+	response, err := stream.CloseAndRecv()
+	fmt.Println(response, err)
 }

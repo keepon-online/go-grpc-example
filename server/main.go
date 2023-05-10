@@ -7,6 +7,7 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/keepon-online/go-grpc-example/gen/hello"
 	"github.com/keepon-online/go-grpc-example/server/handler"
+	"github.com/keepon-online/go-grpc-example/server/service"
 	"github.com/keepon-online/go-grpc-example/util"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -122,6 +123,7 @@ func main() {
 	// 将server结构体注册为gRPC服务。
 	hello.RegisterHelloServiceServer(s, &HelloServer{})
 	hello.RegisterGatewayServiceServer(s, &GateWayServer{})
+	hello.RegisterFileServiceServer(s, &service.FileServer{})
 	fmt.Println("grpc server running :8080")
 	//tlsConfig := util.GetTLSConfig("conf/server.crt", "conf/server.key")
 	// NewListener将会创建一个Listener

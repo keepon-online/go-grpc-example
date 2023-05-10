@@ -211,6 +211,75 @@ func local_request_GatewayService_SayMessage_0(ctx context.Context, marshaler ru
 
 }
 
+func request_FileService_DownLoadFile_0(ctx context.Context, marshaler runtime.Marshaler, client FileServiceClient, req *http.Request, pathParams map[string]string) (FileService_DownLoadFileClient, runtime.ServerMetadata, error) {
+	var protoReq HelloRequest
+	var metadata runtime.ServerMetadata
+
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	stream, err := client.DownLoadFile(ctx, &protoReq)
+	if err != nil {
+		return nil, metadata, err
+	}
+	header, err := stream.Header()
+	if err != nil {
+		return nil, metadata, err
+	}
+	metadata.HeaderMD = header
+	return stream, metadata, nil
+
+}
+
+func request_FileService_UploadFile_0(ctx context.Context, marshaler runtime.Marshaler, client FileServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var metadata runtime.ServerMetadata
+	stream, err := client.UploadFile(ctx)
+	if err != nil {
+		grpclog.Infof("Failed to start streaming: %v", err)
+		return nil, metadata, err
+	}
+	dec := marshaler.NewDecoder(req.Body)
+	for {
+		var protoReq FileRequest
+		err = dec.Decode(&protoReq)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			grpclog.Infof("Failed to decode request: %v", err)
+			return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+		}
+		if err = stream.Send(&protoReq); err != nil {
+			if err == io.EOF {
+				break
+			}
+			grpclog.Infof("Failed to send request: %v", err)
+			return nil, metadata, err
+		}
+	}
+
+	if err := stream.CloseSend(); err != nil {
+		grpclog.Infof("Failed to terminate client stream: %v", err)
+		return nil, metadata, err
+	}
+	header, err := stream.Header()
+	if err != nil {
+		grpclog.Infof("Failed to get header from client: %v", err)
+		return nil, metadata, err
+	}
+	metadata.HeaderMD = header
+
+	msg, err := stream.CloseAndRecv()
+	metadata.TrailerMD = stream.Trailer()
+	return msg, metadata, err
+
+}
+
 // RegisterHelloServiceHandlerServer registers the http handlers for service HelloService to "mux".
 // UnaryRPC     :call HelloServiceServer directly.
 // StreamingRPC :currently unsupported pending https://github.com/grpc/grpc-go/issues/906.
@@ -295,6 +364,29 @@ func RegisterGatewayServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 
 		forward_GatewayService_SayMessage_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
+	})
+
+	return nil
+}
+
+// RegisterFileServiceHandlerServer registers the http handlers for service FileService to "mux".
+// UnaryRPC     :call FileServiceServer directly.
+// StreamingRPC :currently unsupported pending https://github.com/grpc/grpc-go/issues/906.
+// Note that using this registration option will cause many gRPC library features to stop working. Consider using RegisterFileServiceHandlerFromEndpoint instead.
+func RegisterFileServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux, server FileServiceServer) error {
+
+	mux.Handle("POST", pattern_FileService_DownLoadFile_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		err := status.Error(codes.Unimplemented, "streaming calls are not yet supported in the in-process transport")
+		_, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+		return
+	})
+
+	mux.Handle("POST", pattern_FileService_UploadFile_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		err := status.Error(codes.Unimplemented, "streaming calls are not yet supported in the in-process transport")
+		_, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+		return
 	})
 
 	return nil
@@ -518,4 +610,101 @@ var (
 
 var (
 	forward_GatewayService_SayMessage_0 = runtime.ForwardResponseMessage
+)
+
+// RegisterFileServiceHandlerFromEndpoint is same as RegisterFileServiceHandler but
+// automatically dials to "endpoint" and closes the connection when "ctx" gets done.
+func RegisterFileServiceHandlerFromEndpoint(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) (err error) {
+	conn, err := grpc.DialContext(ctx, endpoint, opts...)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			if cerr := conn.Close(); cerr != nil {
+				grpclog.Infof("Failed to close conn to %s: %v", endpoint, cerr)
+			}
+			return
+		}
+		go func() {
+			<-ctx.Done()
+			if cerr := conn.Close(); cerr != nil {
+				grpclog.Infof("Failed to close conn to %s: %v", endpoint, cerr)
+			}
+		}()
+	}()
+
+	return RegisterFileServiceHandler(ctx, mux, conn)
+}
+
+// RegisterFileServiceHandler registers the http handlers for service FileService to "mux".
+// The handlers forward requests to the grpc endpoint over "conn".
+func RegisterFileServiceHandler(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error {
+	return RegisterFileServiceHandlerClient(ctx, mux, NewFileServiceClient(conn))
+}
+
+// RegisterFileServiceHandlerClient registers the http handlers for service FileService
+// to "mux". The handlers forward requests to the grpc endpoint over the given implementation of "FileServiceClient".
+// Note: the gRPC framework executes interceptors within the gRPC handler. If the passed in "FileServiceClient"
+// doesn't go through the normal gRPC flow (creating a gRPC client etc.) then it will be up to the passed in
+// "FileServiceClient" to call the correct interceptors.
+func RegisterFileServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux, client FileServiceClient) error {
+
+	mux.Handle("POST", pattern_FileService_DownLoadFile_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		var err error
+		var annotatedContext context.Context
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/hello.v1.FileService/DownLoadFile", runtime.WithHTTPPathPattern("/hello.v1.FileService/DownLoadFile"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_FileService_DownLoadFile_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_FileService_DownLoadFile_0(annotatedContext, mux, outboundMarshaler, w, req, func() (proto.Message, error) { return resp.Recv() }, mux.GetForwardResponseOptions()...)
+
+	})
+
+	mux.Handle("POST", pattern_FileService_UploadFile_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		var err error
+		var annotatedContext context.Context
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/hello.v1.FileService/UploadFile", runtime.WithHTTPPathPattern("/hello.v1.FileService/UploadFile"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_FileService_UploadFile_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_FileService_UploadFile_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
+	return nil
+}
+
+var (
+	pattern_FileService_DownLoadFile_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"hello.v1.FileService", "DownLoadFile"}, ""))
+
+	pattern_FileService_UploadFile_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"hello.v1.FileService", "UploadFile"}, ""))
+)
+
+var (
+	forward_FileService_DownLoadFile_0 = runtime.ForwardResponseStream
+
+	forward_FileService_UploadFile_0 = runtime.ForwardResponseMessage
 )

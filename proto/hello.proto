@@ -37,6 +37,12 @@ service GatewayService {
     }
 }
 
+service FileService{
+    rpc DownLoadFile(HelloRequest)returns(stream FileResponse){}
+    rpc UploadFile(stream FileRequest)returns(HelloResponse){}
+}
+
+
 // HelloRequest 请求内容
 message HelloRequest {
     string name = 1;
@@ -47,4 +53,14 @@ message HelloRequest {
 message HelloResponse {
     string name = 1;
     string message = 2;
+}
+
+message FileResponse{
+    string file_name = 1;
+    bytes content = 2;
+}
+
+message FileRequest{
+    string file_name = 1;
+    bytes content = 2;
 }
