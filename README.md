@@ -2,6 +2,13 @@
 
 ## 必要的环境安装
 
+```shell
+ go install \
+    github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway \
+    github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2 \
+    google.golang.org/protobuf/cmd/protoc-gen-go \
+    google.golang.org/grpc/cmd/protoc-gen-go-grpc
+```
 
 - [GRPC简单实现](docs/grpc简单实现.md)
 - [服务端流](docs/grpc服务端流.md)

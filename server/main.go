@@ -116,6 +116,7 @@ func main() {
 		grpc.ChainUnaryInterceptor(
 			handler.ServerInterceptorCheckToken(),
 			handler.AuthenticateInterceptor,
+			handler.GrpcRecover(),
 			//handler.UnaryServerInterceptor()
 		),
 		//grpc.StreamInterceptor(handler.StreamServerInterceptor()),

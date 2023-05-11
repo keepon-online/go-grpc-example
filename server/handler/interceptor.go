@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/keepon-online/go-grpc-example/gen/hello"
@@ -13,6 +14,7 @@ import (
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 	"log"
+	"runtime/debug"
 	"strings"
 	"time"
 )
@@ -167,4 +169,19 @@ func CustomHeaderMatcher(key string) (string, bool) {
 		return "token", true
 	}
 	return runtime.DefaultHeaderMatcher(key)
+}
+
+// GrpcRecover recover防止单个请求中的panic, 导致整个进程挂掉, 同时将panic时的堆栈信息保存到日志文件, 以及返回error信息
+func GrpcRecover() grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+		defer func() {
+			if e := recover(); e != nil {
+				log.Printf("server panic %v \n", e)
+				log.Printf("%s \n", debug.Stack())
+				err = errors.New(fmt.Sprintf("panic:%v", e))
+			}
+		}()
+		resp, err = handler(ctx, req)
+		return resp, err
+	}
 }
